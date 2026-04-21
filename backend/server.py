@@ -352,3 +352,35 @@ def update_widgets(payload: dict):
         "message": "Widgets updated",
         "widgets": payload.get("widgets", [])
     }
+
+# ---------------------------
+# RISK COMPUTE
+# ---------------------------
+from risk_engine import compute_risk
+
+@app.post("/upload")
+async def upload(file: UploadFile = File(...)):
+    ...
+    data = extract_audit_data(file_path)
+
+    summary = compute_summary(data)
+    risk = compute_risk(data)
+
+    return {
+        "summary": summary,
+        "kpis": data,
+        "risk": risk
+    }
+
+@app.get("/config")
+def get_config():
+    return CONFIG
+
+# ---------------------------
+# CONFIG
+# ---------------------------
+@app.post("/config")
+def update_config(new_config: dict):
+    with open("governance_config.json", "w") as f:
+        json.dump(new_config, f, indent=2)
+    return {"status": "updated"}
