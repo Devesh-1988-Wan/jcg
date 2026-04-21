@@ -1,40 +1,41 @@
 import React, { useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
-import MainLayout from "./components/layout/MainLayout";
 
-import ExecutiveSummaryPage from "./pages/ExecutiveSummaryPage";
+import MainLayout from "./components/layout/MainLayout";
+import UploadReportPage from "./pages/UploadReportPage";
+import DashboardPage from "./pages/DashboardPage";
+import ExecutiveSummaryPage from "./components/ExecutiveSummaryPage";
 import SlideBriefPage from "./pages/SlideBriefPage";
 import DetailedFindingsPage from "./pages/DetailedFindingsPage";
 import KpiAppendixPage from "./pages/KpiAppendixPage";
-import UploadReportPage from "./pages/UploadReportPage";
 import WidgetEditorPage from "./pages/WidgetEditorPage";
 
-function App() {
-  // ✅ GLOBAL STATE (critical)
+export default function App() {
   const [data, setData] = useState([]);
 
   return (
     <Routes>
+      {/* Upload */}
+      <Route
+        path="/"
+        element={
+          <UploadReportPage
+            onUploadSuccess={({ reportData }) => setData(reportData)}
+          />
+        }
+      />
+
+      {/* Dashboard */}
+      <Route path="/dashboard" element={<DashboardPage data={data} />} />
+
+      {/* Layout Routes */}
       <Route path="/" element={<MainLayout />}>
-
-        {/* Redirect */}
-        <Route index element={<Navigate to="/upload" />} />
-
-        {/* Upload FIRST (important UX) */}
-        <Route path="upload" element={<UploadReportPage setData={setData} />} />
-
-        {/* Dashboard Pages (receive data) */}
         <Route path="summary" element={<ExecutiveSummaryPage data={data} />} />
         <Route path="slides" element={<SlideBriefPage data={data} />} />
         <Route path="findings" element={<DetailedFindingsPage data={data} />} />
         <Route path="appendix" element={<KpiAppendixPage data={data} />} />
-
-        {/* Editor (optional data) */}
         <Route path="editor" element={<WidgetEditorPage data={data} />} />
-
       </Route>
     </Routes>
   );
 }
-
-export default App;

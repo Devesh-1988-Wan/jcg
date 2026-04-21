@@ -2,11 +2,30 @@ from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 import pdfplumber
 import json
+from governance_engine import process_compliance_input
 import tempfile
 import os
 import requests
 
+
 app = FastAPI()
+
+@app.post("/report/upload")
+async def upload_report(
+    file: UploadFile = File(...),
+    skip_ai: str = Form("false")  # receive as string
+):
+    skip_ai = skip_ai.lower() == "true"
+
+    content = await file.read()
+
+    # parse file...
+    # process governance...
+
+    return {
+        "status": "success",
+        "skip_ai": skip_ai
+    }
 
 # ---------------------------
 # CONFIG

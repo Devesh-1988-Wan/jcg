@@ -12,7 +12,9 @@ export const uploadReport = async (file, skipAI = false) => {
   try {
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("skip_ai", skipAI);
+
+    // ✅ FIX: Always send string (FastAPI Form compatibility)
+    formData.append("skip_ai", skipAI ? "true" : "false");
 
     const url = `${BASE_URL}/report/upload`;
 
@@ -139,17 +141,26 @@ export const updateReportWidgets = async (widgets) => {
 // ==============================
 // FETCH CONFIG
 // ==============================
-
 export const fetchConfig = async () => {
-  const res = await fetch("/config");
+  const res = await fetch(`${BASE_URL}/config`);
+
+  if (!res.ok) {
+    throw new Error("Failed to fetch config");
+  }
+
   return res.json();
 };
 
 export const updateConfig = async (config) => {
-  const res = await fetch("/config", {
+  const res = await fetch(`${BASE_URL}/config`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(config)
+    body: JSON.stringify(config),
   });
+
+  if (!res.ok) {
+    throw new Error("Failed to update config");
+  }
+
   return res.json();
 };
