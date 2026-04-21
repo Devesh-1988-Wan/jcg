@@ -2,190 +2,136 @@ const BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
   "http://127.0.0.1:8000";
 
-// ✅ DEBUG LOG
 console.log("🌐 API BASE URL:", BASE_URL);
+
+// ==============================
+// 🔥 GENERIC FETCH WRAPPER (KEY FIX)
+// ==============================
+const fetchWrapper = async (url, options = {}, timeout = 30000) => {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const res = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`API Error (${res.status}): ${text}`);
+    }
+
+    const data = await res.json();
+    return data;
+
+  } catch (error) {
+    if (error.name === "AbortError") {
+      throw new Error("Request timeout");
+    }
+    console.error("❌ API Error:", error);
+    throw error;
+  } finally {
+    clearTimeout(id);
+  }
+};
 
 // ==============================
 // UPLOAD REPORT
 // ==============================
 export const uploadReport = async (file, skipAI = false) => {
-  try {
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("skip_ai", skipAI ? "true" : "false");
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("skip_ai", skipAI ? "true" : "false");
 
-    const url = `${BASE_URL}/report/upload`;
+  const url = `${BASE_URL}/report/upload`;
 
-    console.log("🚀 Upload URL:", url);
-    console.log("📄 File:", file);
-    console.log("⚙️ Skip AI:", skipAI);
+  console.log("🚀 Upload URL:", url);
 
-    const res = await fetch(url, {
-      method: "POST",
-      body: formData,
-    });
-
-    if (!res.ok) {
-      throw new Error(`Upload failed: ${res.status}`);
-    }
-
-    const data = await res.json();
-
-    console.log("✅ Upload response:", data);
-
-    return data;
-
-  } catch (error) {
-    console.error("❌ uploadReport error:", error);
-    throw error;
-  }
+  return fetchWrapper(url, {
+    method: "POST",
+    body: formData,
+  }, 60000); // longer timeout for upload
 };
 
 // ==============================
-// ✅ FETCH SUMMARY
+// FETCH SUMMARY
 // ==============================
 export const fetchReportSummary = async () => {
-  const url = `${BASE_URL}/report/summary`;
-
-  console.log("📊 Calling:", url);
-
-  const res = await fetch(url);
-
-  console.log(`📡 Response from ${url}:`, res.status);
-
-  if (!res.ok) {
-    throw new Error("Failed to fetch summary");
-  }
-
-  const data = await res.json();
-
-  console.log("✅ Summary Data:", data);
-
-  return data;
+  return fetchWrapper(`${BASE_URL}/report/summary`);
 };
 
 // ==============================
-// ✅ 🔥 MISSING FUNCTION (CRITICAL FIX)
+// FETCH KPIs
 // ==============================
 export const fetchReportKpis = async () => {
-  const url = `${BASE_URL}/report/kpis`;
-
-  console.log("📈 Calling KPI API:", url);
-
-  const res = await fetch(url);
-
-  console.log(`📡 KPI Response:`, res.status);
-
-  if (!res.ok) {
-    throw new Error("Failed to fetch KPIs");
-  }
-
-  const data = await res.json();
-
-  console.log("✅ KPI Data:", data);
-
-  return data;
+  return fetchWrapper(`${BASE_URL}/report/kpis`);
 };
 
 // ==============================
 // FETCH FULL REPORT
 // ==============================
 export const fetchReport = async () => {
-  const res = await fetch(`${BASE_URL}/report`);
+  return fetchWrapper(`${BASE_URL}/report`);
+};
 
-  if (!res.ok) {
-    throw new Error("Failed to fetch report");
-  }
-
-  return res.json();
+// ==============================
+// 🔥 AI STATUS (NEW - REQUIRED)
+// ==============================
+export const fetchAIStatus = async () => {
+  return fetchWrapper(`${BASE_URL}/report/ai-status`);
 };
 
 // ==============================
 // FETCH ACTIONS
 // ==============================
 export const fetchReportActions = async () => {
-  const res = await fetch(`${BASE_URL}/report/actions`);
-
-  if (!res.ok) {
-    throw new Error("Failed to fetch actions");
-  }
-
-  return res.json();
+  return fetchWrapper(`${BASE_URL}/report/actions`);
 };
 
 // ==============================
 // UPDATE ACTION
 // ==============================
 export const patchActionStatus = async (id, status) => {
-  const res = await fetch(`${BASE_URL}/report/actions/${id}`, {
+  return fetchWrapper(`${BASE_URL}/report/actions/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ status }),
   });
-
-  if (!res.ok) {
-    throw new Error("Failed to update action");
-  }
-
-  return res.json();
 };
 
 // ==============================
 // FETCH WIDGETS
 // ==============================
 export const fetchReportWidgets = async () => {
-  const res = await fetch(`${BASE_URL}/report/widgets`);
-
-  if (!res.ok) {
-    throw new Error("Failed to fetch widgets");
-  }
-
-  return res.json();
+  return fetchWrapper(`${BASE_URL}/report/widgets`);
 };
 
 // ==============================
 // UPDATE WIDGETS
 // ==============================
 export const updateReportWidgets = async (widgets) => {
-  const res = await fetch(`${BASE_URL}/report/widgets`, {
+  return fetchWrapper(`${BASE_URL}/report/widgets`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ widgets }),
   });
-
-  if (!res.ok) {
-    throw new Error("Failed to update widgets");
-  }
-
-  return res.json();
 };
 
 // ==============================
 // FETCH CONFIG
 // ==============================
 export const fetchConfig = async () => {
-  const res = await fetch(`${BASE_URL}/config`);
-
-  if (!res.ok) {
-    throw new Error("Failed to fetch config");
-  }
-
-  return res.json();
+  return fetchWrapper(`${BASE_URL}/config`);
 };
 
 // ==============================
 // UPDATE CONFIG
 // ==============================
 export const updateConfig = async (config) => {
-  const res = await fetch(`${BASE_URL}/config`, {
+  return fetchWrapper(`${BASE_URL}/config`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(config),
   });
-
-  if (!res.ok) {
-    throw new Error("Failed to update config");
-  }
-
-  return res.json();
 };

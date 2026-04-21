@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { uploadReport } from "../api/reportApi";
 import { useNavigate } from "react-router-dom";
 
@@ -6,6 +6,8 @@ export default function UploadReportPage() {
   const [file, setFile] = useState(null);
   const [skipAI, setSkipAI] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [report, setReport] = useState("");
+  const [kpis, setKpis] = useState([]); // ✅ FIX
 
   const navigate = useNavigate();
 
@@ -17,25 +19,28 @@ export default function UploadReportPage() {
   };
 
   // ---------------------------
-  // ✅ FIXED: ASYNC FUNCTION
+  // UPLOAD HANDLER
   // ---------------------------
   const handleUpload = async () => {
-    try {
-      if (!file) {
-        alert("Please select a file");
-        return;
-      }
+    if (!file) {
+      alert("Please select a file");
+      return;
+    }
 
+    try {
       setLoading(true);
 
-      const response = await uploadReport(file, skipAI);
+      const res = await uploadReport(file, skipAI);
 
-      console.log("UPLOAD SUCCESS:", response);
+      console.log("UPLOAD SUCCESS:", res);
 
-      // ✅ Optional: store locally (if needed)
-      // localStorage.setItem("governanceData", JSON.stringify(response.data));
+      setKpis(res.data);
+      setReport(res.report); // "Processing..." or final
 
-      // ✅ Navigate to dashboard after upload
+      // Optional: store for dashboard
+      localStorage.setItem("kpis", JSON.stringify(res.data));
+
+      // Navigate immediately (AI will load later)
       navigate("/dashboard");
 
     } catch (error) {
@@ -45,6 +50,30 @@ export default function UploadReportPage() {
       setLoading(false);
     }
   };
+
+  // ---------------------------
+  // AI POLLING (BACKGROUND)
+  // ---------------------------
+  useEffect(() => {
+    if (report !== "Processing...") return;
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch("http://127.0.0.1:8000/report/ai-status");
+        const data = await res.json();
+
+        if (data.status === "completed") {
+          setReport(data.report);
+          localStorage.setItem("report", data.report); // ✅ store final AI report
+          clearInterval(interval);
+        }
+      } catch (err) {
+        console.error("Polling error:", err);
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [report]);
 
   // ---------------------------
   // UI

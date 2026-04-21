@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import ExecutiveSummaryPage from "../components/ExecutiveSummaryPage";
-import { fetchReportSummary, fetchReportKpis } from "../api/reportApi";
+import {
+  fetchReportSummary,
+  fetchReportKpis,
+  fetchAIStatus,
+} from "../api/reportApi";
 import { PieChart, Pie, Cell, Tooltip } from "recharts";
 
 export default function DashboardPage() {
@@ -10,10 +14,67 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // ---------------------------
+  // INITIAL LOAD
+  // ---------------------------
   useEffect(() => {
     loadDashboard();
   }, []);
 
+  // ---------------------------
+  // POLL AI STATUS
+  // ---------------------------
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetchAIStatus();
+        if (res.status === "completed") {
+          loadDashboard();
+          clearInterval(interval);
+        }
+      } catch (err) {
+        console.error("AI polling error:", err);
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // ---------------------------
+  // RAG LOGIC
+  // ---------------------------
+  const getRagStatus = (value) => {
+    const val = Number(value);
+    if (isNaN(val)) return "UNKNOWN";
+    if (val > 25) return "RED";
+    if (val > 5) return "AMBER";
+    return "GREEN";
+  };
+
+  // ---------------------------
+  // FORMAT KPI (FIXED)
+  // ---------------------------
+  const formatRiskItem = (item = {}) => {
+    const raw = item.name || item.checklistItem || "";
+
+    let clean = raw
+      .replace(/^\d+\s+/i, "")
+      .replace(/AUD-\d+/gi, "")
+      .replace(/\b(RED|AMBER|GREEN)\b/gi, "")
+      .replace(/\s*>\s*/g, " > ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    return {
+      checklistItem: clean,
+      severity: Number(item.value) || 0,
+      status: getRagStatus(item.value),
+    };
+  };
+
+  // ---------------------------
+  // LOAD DASHBOARD DATA
+  // ---------------------------
   const loadDashboard = async () => {
     try {
       setLoading(true);
@@ -29,7 +90,6 @@ export default function DashboardPage() {
       setSummary(summaryRes?.summary || null);
       setKpis(rawKpis);
 
-      // 🔥 PROCESS TOP RISKS HERE
       const processedRisks = rawKpis
         .map(formatRiskItem)
         .filter((item) => item.status === "RED")
@@ -50,43 +110,7 @@ export default function DashboardPage() {
   };
 
   // ---------------------------
-  // FORMATTER (FIXED)
-  // ---------------------------
-  const formatRiskItem = (item) => {
-    const raw = item.checklistItem || item.name || "";
-
-    const clean = raw
-      .replace(/^\d+\s+AUD-\d+\s+/i, "")
-      .replace(/\s+(RED|AMBER|GREEN)$/i, "")
-      .replace(/\s*days?/i, "")
-      .replace(/>\s*/g, "> ")
-      .trim();
-
-    const auditMatch = raw.match(/AUD-\d+/i);
-
-    const value = Number(item.value);
-
-    return {
-      auditId: auditMatch ? auditMatch[0] : "",
-      checklistItem: clean,
-      severity: isNaN(value) ? 0 : value,
-      status: getRagStatus(value), // ✅ IMPORTANT FIX
-    };
-  };
-
-  // ---------------------------
-  // RAG LOGIC
-  // ---------------------------
-  const getRagStatus = (value) => {
-    const val = Number(value);
-    if (isNaN(val)) return "UNKNOWN";
-    if (val > 25) return "RED";
-    if (val > 5) return "AMBER";
-    return "GREEN";
-  };
-
-  // ---------------------------
-  // RAG DISTRIBUTION
+  // DISTRIBUTION
   // ---------------------------
   const getRagDistribution = () => {
     let red = 0,
@@ -160,7 +184,10 @@ export default function DashboardPage() {
   return (
     <div className="p-6 space-y-6">
 
-      {/* RAG PIE CHART */}
+      <div className="text-sm text-gray-500">
+        AI Insights updating automatically...
+      </div>
+
       <div className="flex justify-center">
         <PieChart width={320} height={320}>
           <Pie data={chartData} dataKey="value" outerRadius={110} label>
@@ -172,7 +199,6 @@ export default function DashboardPage() {
         </PieChart>
       </div>
 
-      {/* EXECUTIVE SUMMARY (PASS CLEAN DATA) */}
       <ExecutiveSummaryPage
         summary={{
           ...summary,
@@ -180,7 +206,7 @@ export default function DashboardPage() {
           rag,
         }}
         data={kpis}
-        topRisks={topRisks} // ✅ NEW PROP
+        topRisks={topRisks}
       />
     </div>
   );
