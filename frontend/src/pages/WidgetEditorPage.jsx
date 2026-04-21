@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { fetchReport, updateReportWidgets } from "../api/reportApi";
+import {
+  fetchReportWidgets,
+  updateReportWidgets
+} from "../api/reportApi";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

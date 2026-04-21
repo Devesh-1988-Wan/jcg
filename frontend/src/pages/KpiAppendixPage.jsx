@@ -1,5 +1,4 @@
-
-import React from "react";
+import { fetchReportActions } from "../api/reportApi";
 
 export default function KPIAppendix({ data }) {
   return (

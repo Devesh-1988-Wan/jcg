@@ -1,0 +1,22 @@
+{
+  "version": "v1.0",
+  "global_thresholds": {
+    "red": 25,
+    "amber": 5
+  },
+  "kpi_rules": [
+    {
+      "id": "AUD-29",
+      "name": "Lead Time",
+      "category": "DELIVERY",
+      "weight": 1.5,
+      "thresholds": { "red": 60, "amber": 30 }
+    },
+    {
+      "id": "AUD-42",
+      "name": "Scope Creep",
+      "category": "PREDICTABILITY",
+      "weight": 2
+    }
+  ]
+}

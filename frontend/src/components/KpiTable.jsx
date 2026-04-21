@@ -5,8 +5,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "../ui/table";
-import StatusBadge from "./StatusBadge";
+} from "./ui/table";
+import StatusBadge from "./report/StatusBadge";
 
 export default function KpiTable({ metrics }) {
   return (

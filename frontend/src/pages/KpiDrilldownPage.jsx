@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { fetchReport, fetchConfig } from "../api/reportApi";
+import { fetchReport } from "../api/reportApi";
 
 const KpiDrilldownPage = () => {
   const { id } = useParams();
