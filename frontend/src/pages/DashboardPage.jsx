@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import ExecutiveSummaryPage from "../components/ExecutiveSummaryPage";
+import ExecutiveSummary from "../components/ExecutiveSummaryPage"; // ✅ FIXED
 import { fetchReport, fetchAIStatus } from "../api/reportApi";
 import { PieChart, Pie, Cell, Tooltip } from "recharts";
 
@@ -8,9 +8,6 @@ import { scoreKpis } from "../utils/ragScoring";
 import { generateAIInsights } from "../services/aiService";
 
 export default function DashboardPage() {
-  // ---------------------------
-  // STATE (ALL HOOKS FIRST ✅)
-  // ---------------------------
   const [summary, setSummary] = useState(null);
   const [kpis, setKpis] = useState([]);
   const [topRisks, setTopRisks] = useState([]);
@@ -18,16 +15,10 @@ export default function DashboardPage() {
   const [error, setError] = useState(null);
   const [aiInsights, setAiInsights] = useState(null);
 
-  // ---------------------------
-  // INITIAL LOAD
-  // ---------------------------
   useEffect(() => {
     loadDashboard();
   }, []);
 
-  // ---------------------------
-  // POLL AI STATUS
-  // ---------------------------
   useEffect(() => {
     let attempts = 0;
     const maxAttempts = 12;
@@ -52,20 +43,16 @@ export default function DashboardPage() {
     return () => clearInterval(interval);
   }, []);
 
-  // ---------------------------
-  // LOAD DATA (FIXED ✅)
-  // ---------------------------
   const loadDashboard = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const res = await fetchReport(); // ✅ ONLY place res exists
+      const res = await fetchReport();
 
       const rawKpis = res.kpis || res.data || [];
       const normalizedKpis = rawKpis.map(normalizeKpi);
 
-      // ✅ FIX: summary handled correctly
       const summaryText =
         res.summary?.text ||
         res.report ||
@@ -111,48 +98,26 @@ export default function DashboardPage() {
   }, [kpis]);
 
   // ---------------------------
-  // RAG DISTRIBUTION
+  // RAG + SCORE
   // ---------------------------
-  const getRagDistribution = () => {
-    let red = 0, amber = 0, green = 0;
-
-    kpis.forEach((item) => {
-      if (item.status === "RED") red++;
-      else if (item.status === "AMBER") amber++;
-      else if (item.status === "GREEN") green++;
-    });
-
-    return { red, amber, green };
+  const rag = {
+    red: kpis.filter(k => k.status === "RED").length,
+    amber: kpis.filter(k => k.status === "AMBER").length,
+    green: kpis.filter(k => k.status === "GREEN").length,
   };
 
-  const rag = getRagDistribution();
+  const complianceScore = kpis.length
+    ? Math.round(
+        (kpis.reduce((acc, k) => {
+          if (k.status === "GREEN") return acc + 1;
+          if (k.status === "AMBER") return acc + 0.5;
+          return acc;
+        }, 0) / kpis.length) * 100
+      )
+    : 0;
 
-  // ---------------------------
-  // COMPLIANCE SCORE
-  // ---------------------------
-  const calculateComplianceScore = () => {
-    if (!kpis.length) return 0;
-
-    let score = 0;
-
-    kpis.forEach((item) => {
-      if (item.status === "GREEN") score += 1;
-      else if (item.status === "AMBER") score += 0.5;
-    });
-
-    return Math.round((score / kpis.length) * 100);
-  };
-
-  const complianceScore = calculateComplianceScore();
-
-  // ---------------------------
-  // SCORING ENGINE
-  // ---------------------------
   const { overallRag, totalScore } = scoreKpis(kpis);
 
-  // ---------------------------
-  // PIE DATA
-  // ---------------------------
   const chartData = [
     { name: "Red", value: rag.red },
     { name: "Amber", value: rag.amber },
@@ -161,16 +126,10 @@ export default function DashboardPage() {
 
   const COLORS = ["#ef4444", "#f59e0b", "#22c55e"];
 
-  // ---------------------------
-  // UI STATES
-  // ---------------------------
   if (loading) return <div className="p-6">Loading dashboard...</div>;
   if (error) return <div className="p-6 text-red-500">{error}</div>;
   if (!kpis.length) return <div className="p-6">No KPI Data</div>;
 
-  // ---------------------------
-  // UI
-  // ---------------------------
   return (
     <div className="p-6 space-y-6">
       <div className="text-sm text-gray-500">
@@ -194,17 +153,9 @@ export default function DashboardPage() {
         </PieChart>
       </div>
 
-      {/* SUMMARY */}
-      <ExecutiveSummaryPage
-        summary={{
-          ...(summary || {}),
-          complianceScore,
-          rag,
-          overallRag,
-          totalScore,
-        }}
+      {/* ✅ FIXED COMPONENT */}
+      <ExecutiveSummary
         data={kpis}
-        topRisks={topRisks}
         aiInsights={aiInsights}
       />
     </div>
