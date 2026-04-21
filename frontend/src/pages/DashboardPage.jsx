@@ -3,22 +3,19 @@ import ExecutiveSummaryPage from "../components/ExecutiveSummaryPage";
 import { fetchReport, fetchAIStatus } from "../api/reportApi";
 import { PieChart, Pie, Cell, Tooltip } from "recharts";
 
-// ✅ utils
 import { normalizeKpi } from "../utils/normalizeKpi";
 import { scoreKpis } from "../utils/ragScoring";
-import { generateAIInsights } from "../services/aiService"; // ✅ ADD THIS
+import { generateAIInsights } from "../services/aiService";
 
 export default function DashboardPage() {
   // ---------------------------
-  // ALL HOOKS MUST BE HERE
+  // STATE (ALL HOOKS FIRST ✅)
   // ---------------------------
   const [summary, setSummary] = useState(null);
   const [kpis, setKpis] = useState([]);
   const [topRisks, setTopRisks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  // ✅ FIX: moved here
   const [aiInsights, setAiInsights] = useState(null);
 
   // ---------------------------
@@ -46,7 +43,6 @@ export default function DashboardPage() {
 
         attempts++;
         if (attempts >= maxAttempts) clearInterval(interval);
-
       } catch (err) {
         console.error("AI polling error:", err);
         clearInterval(interval);
@@ -57,18 +53,25 @@ export default function DashboardPage() {
   }, []);
 
   // ---------------------------
-  // LOAD DATA
+  // LOAD DATA (FIXED ✅)
   // ---------------------------
   const loadDashboard = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const res = await fetchReport();
+      const res = await fetchReport(); // ✅ ONLY place res exists
 
-      const normalizedKpis = (res.kpis || []).map(normalizeKpi);
+      const rawKpis = res.kpis || res.data || [];
+      const normalizedKpis = rawKpis.map(normalizeKpi);
 
-      setSummary(res.summary || null);
+      // ✅ FIX: summary handled correctly
+      const summaryText =
+        res.summary?.text ||
+        res.report ||
+        "AI insights not available";
+
+      setSummary({ text: summaryText });
       setKpis(normalizedKpis);
 
       const top = normalizedKpis
@@ -90,7 +93,7 @@ export default function DashboardPage() {
   };
 
   // ---------------------------
-  // AI INSIGHTS (SAFE)
+  // AI INSIGHTS
   // ---------------------------
   useEffect(() => {
     if (!kpis.length) return;
@@ -159,23 +162,11 @@ export default function DashboardPage() {
   const COLORS = ["#ef4444", "#f59e0b", "#22c55e"];
 
   // ---------------------------
-  // STATES
+  // UI STATES
   // ---------------------------
-  if (loading) {
-    return <div className="p-6 text-gray-500">Loading dashboard...</div>;
-  }
-
-  if (error) {
-    return <div className="p-6 text-red-500">{error}</div>;
-  }
-
-  if (kpis.length === 0) {
-    return (
-      <div className="p-6 text-gray-500">
-        No KPI Data Available. Please upload a report.
-      </div>
-    );
-  }
+  if (loading) return <div className="p-6">Loading dashboard...</div>;
+  if (error) return <div className="p-6 text-red-500">{error}</div>;
+  if (!kpis.length) return <div className="p-6">No KPI Data</div>;
 
   // ---------------------------
   // UI
@@ -186,28 +177,16 @@ export default function DashboardPage() {
         AI Insights updating automatically...
       </div>
 
-      {/* DONUT CHART */}
+      {/* DONUT */}
       <div className="flex justify-center">
         <PieChart width={320} height={320}>
-          <Pie
-            data={chartData}
-            dataKey="value"
-            innerRadius={70}
-            outerRadius={110}
-            paddingAngle={3}
-          >
+          <Pie data={chartData} dataKey="value" innerRadius={70} outerRadius={110}>
             {chartData.map((entry, index) => (
               <Cell key={index} fill={COLORS[index]} />
             ))}
           </Pie>
 
-          <text
-            x="50%"
-            y="50%"
-            textAnchor="middle"
-            dominantBaseline="middle"
-            className="text-xl font-semibold fill-gray-700"
-          >
+          <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle">
             {complianceScore}%
           </text>
 
@@ -215,7 +194,7 @@ export default function DashboardPage() {
         </PieChart>
       </div>
 
-      {/* EXECUTIVE SUMMARY */}
+      {/* SUMMARY */}
       <ExecutiveSummaryPage
         summary={{
           ...(summary || {}),
@@ -226,7 +205,7 @@ export default function DashboardPage() {
         }}
         data={kpis}
         topRisks={topRisks}
-        aiInsights={aiInsights} // ✅ pass AI output
+        aiInsights={aiInsights}
       />
     </div>
   );

@@ -1,24 +1,79 @@
-import requests
+import { filterKpis } from "../utils/filterKpis";
+import { buildAiPayload } from "../utils/buildAiPayload";
 
-OLLAMA_URL = "http://localhost:11434/api/generate"
+// 🔥 Simple in-memory cache (optional but powerful)
+const aiCache = {};
 
-def generate_ai_report(kpis):
-    try:
-        prompt = build_prompt(kpis)
+export async function generateAIInsights(kpis = []) {
+  try {
+    if (!kpis.length) return null;
 
-        response = requests.post(
-            OLLAMA_URL,
-            json={
-                "model": "llama3",
-                "prompt": prompt,
-                "stream": False
-            },
-            timeout=60
-        )
+    // ---------------------------
+    // FILTER (FAST MODE)
+    // ---------------------------
+    const filtered = filterKpis(kpis, "FAST");
 
-        data = response.json()
-        return data.get("response", "No AI response")
+    // ---------------------------
+    // BUILD PAYLOAD
+    // ---------------------------
+    const payload = buildAiPayload(filtered);
 
-    except Exception as e:
-        print("❌ Ollama Error:", str(e))
-        return None
+    // ---------------------------
+    // CACHE KEY
+    // ---------------------------
+    const cacheKey = JSON.stringify(payload);
+
+    if (aiCache[cacheKey]) {
+      return aiCache[cacheKey]; // ⚡ instant return
+    }
+
+    // ---------------------------
+    // API CALL
+    // ---------------------------
+    const res = await fetch("http://127.0.0.1:11434/api/generate", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "llama3",
+        prompt: `
+Analyze Agile delivery risks.
+
+Input:
+${JSON.stringify(payload)}
+
+Return:
+- Top 3 risks
+- Root causes
+- Actions
+
+Max 100 words.
+`,
+        stream: false
+      })
+    });
+
+    if (!res.ok) {
+      throw new Error(`AI API failed: ${res.status}`);
+    }
+
+    const data = await res.json();
+
+    const result = data?.response || "AI analysis not available";
+
+    // ---------------------------
+    // STORE CACHE
+    // ---------------------------
+    aiCache[cacheKey] = result;
+
+    return result;
+
+  } catch (error) {
+    console.error("❌ AI Service Error:", error);
+
+    // ✅ Safe fallback
+    return "AI insights unavailable. Please try again.";
+  }
+}
+
