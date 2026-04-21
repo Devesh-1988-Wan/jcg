@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { fetchReportKpis } from "../api/reportApi";
+import { normalizeKpi } from "../utils/normalizeKpi";
 
 export default function DetailedFindingsPage() {
   const [kpis, setKpis] = useState([]);
@@ -15,9 +16,14 @@ export default function DetailedFindingsPage() {
       setLoading(true);
 
       const res = await fetchReportKpis();
-      console.log("📊 Detailed KPI Data:", res);
+      console.log("📊 RAW KPI Data:", res);
 
-      setKpis(res?.kpis || []);
+      const rawKpis = res?.kpis || res?.data || [];
+      const normalized = rawKpis.map(normalizeKpi);
+
+      console.log("✅ NORMALIZED KPIs:", normalized);
+
+      setKpis(normalized);
     } catch (err) {
       console.error("❌ Failed to load KPIs:", err);
       setKpis([]);
@@ -27,44 +33,15 @@ export default function DetailedFindingsPage() {
   };
 
   // ---------------------------
-  // GOVERNANCE: RAG LOGIC
+  // SORTING (MEMOIZED ✅)
   // ---------------------------
-  const getStatus = (value) => {
-    const val = Number(value);
-
-    if (isNaN(val)) return "UNKNOWN";
-    if (val > 25) return "RED";
-    if (val > 5) return "AMBER";
-    return "GREEN";
-  };
-
-  // ---------------------------
-  // CLEAN CHECKLIST TEXT
-  // ---------------------------
-  const extractChecklistName = (text) => {
-    if (!text) return "Unknown Item";
-
-    return text
-      // Remove leading number + AUD pattern
-      .replace(/^\d+\s+AUD-\d+\s+/i, "")
-      // Remove trailing status
-      .replace(/\s+(RED|AMBER|GREEN)$/i, "")
-      // Remove "days"
-      .replace(/\s*days?/i, "")
-      // Normalize spacing (Aging >10 → Aging > 10)
-      .replace(/>\s*/g, "> ")
-      .trim();
-  };
-
-  // ---------------------------
-  // SORTING
-  // ---------------------------
-  const sortedKpis = [...kpis].sort((a, b) => {
-    const valA = Number(a.value);
-    const valB = Number(b.value);
-
-    return sortDesc ? valB - valA : valA - valB;
-  });
+  const sortedKpis = useMemo(() => {
+    return [...kpis].sort((a, b) => {
+      const valA = Number(a.value);
+      const valB = Number(b.value);
+      return sortDesc ? valB - valA : valA - valB;
+    });
+  }, [kpis, sortDesc]);
 
   // ---------------------------
   // LOADING
@@ -76,13 +53,35 @@ export default function DetailedFindingsPage() {
   // ---------------------------
   // EMPTY
   // ---------------------------
-  if (!kpis || kpis.length === 0) {
+  if (!kpis.length) {
     return (
       <div className="p-6 text-gray-500">
         No detailed findings available.
       </div>
     );
   }
+
+  // ---------------------------
+  // STATUS COLOR
+  // ---------------------------
+  const getStatusColor = (status) => {
+    if (status === "RED") return "bg-red-100 text-red-700";
+    if (status === "AMBER") return "bg-yellow-100 text-yellow-700";
+    if (status === "GREEN") return "bg-green-100 text-green-700";
+    return "bg-gray-100 text-gray-600";
+  };
+
+  // ---------------------------
+  // CATEGORY COLOR
+  // ---------------------------
+  const getCategoryColor = (category) => {
+    if (category === "FLOW") return "text-blue-600";
+    if (category === "QUALITY") return "text-purple-600";
+    if (category === "DELIVERY") return "text-indigo-600";
+    if (category === "PREDICTABILITY") return "text-orange-600";
+    if (category === "DATA_INTEGRITY") return "text-red-600";
+    return "text-gray-500";
+  };
 
   // ---------------------------
   // RENDER
@@ -94,7 +93,7 @@ export default function DetailedFindingsPage() {
         <h2 className="text-lg font-semibold">Detailed Findings</h2>
 
         <button
-          onClick={() => setSortDesc(!sortDesc)}
+          onClick={() => setSortDesc((prev) => !prev)}
           className="px-3 py-1 border rounded text-sm hover:bg-gray-100"
         >
           Sort by % ({sortDesc ? "High → Low" : "Low → High"})
@@ -106,59 +105,39 @@ export default function DetailedFindingsPage() {
         <table className="min-w-full text-sm">
           <thead className="bg-gray-100 text-gray-600">
             <tr>
-              <th className="p-3 text-left">Sr No</th>
+              <th className="p-3 text-left">#</th>
               <th className="p-3 text-left">Checklist Item</th>
+              <th className="p-3 text-left">Category</th>
               <th className="p-3 text-left">Status</th>
               <th className="p-3 text-left">%</th>
             </tr>
           </thead>
 
           <tbody>
-            {sortedKpis.map((item, index) => {
-              const value = Number(item.value);
-              const status = getStatus(value);
-
-              return (
-                <tr
-                  key={item.id || index}
-                  className={`border-t hover:bg-gray-50 ${
-                    status === "RED" ? "bg-red-50" : ""
-                  }`}
-                >
-                  {/* SERIAL NUMBER */}
-                  <td className="p-3">{index + 1}</td>
-
-                  {/* CLEAN CHECKLIST ITEM */}
-                  <td className="p-3">
-                    {extractChecklistName(
-                      item.checklistItem || item.name
-                    )}
-                  </td>
-
-                  {/* STATUS */}
-                  <td className="p-3">
-                    <span
-                      className={`px-2 py-1 rounded text-xs font-medium ${
-                        status === "RED"
-                          ? "bg-red-100 text-red-700"
-                          : status === "AMBER"
-                          ? "bg-yellow-100 text-yellow-700"
-                          : status === "GREEN"
-                          ? "bg-green-100 text-green-700"
-                          : "bg-gray-100 text-gray-600"
-                      }`}
-                    >
-                      {status}
-                    </span>
-                  </td>
-
-                  {/* VALUE */}
-                  <td className="p-3 font-semibold">
-                    {isNaN(value) ? "-" : `${value}%`}
-                  </td>
-                </tr>
-              );
-            })}
+            {sortedKpis.map((item, index) => (
+              <tr
+                key={item.id || index}
+                className={`border-t hover:bg-gray-50 ${
+                  item.status === "RED" ? "bg-red-50" : ""
+                }`}
+              >
+                <td className="p-3">{index + 1}</td>
+                <td className="p-3">{item.name}</td>
+                <td className={`p-3 font-medium ${getCategoryColor(item.category)}`}>
+                  {item.category}
+                </td>
+                <td className="p-3">
+                  <span
+                    className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(
+                      item.status
+                    )}`}
+                  >
+                    {item.status}
+                  </span>
+                </td>
+                <td className="p-3 font-semibold">{item.value}%</td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
