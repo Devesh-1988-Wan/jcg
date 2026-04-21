@@ -6,14 +6,12 @@ const BASE_URL =
 console.log("🌐 API BASE URL:", BASE_URL);
 
 // ==============================
-// UPLOAD REPORT (WITH SKIP AI)
+// UPLOAD REPORT
 // ==============================
 export const uploadReport = async (file, skipAI = false) => {
   try {
     const formData = new FormData();
     formData.append("file", file);
-
-    // ✅ FIX: Always send string (FastAPI Form compatibility)
     formData.append("skip_ai", skipAI ? "true" : "false");
 
     const url = `${BASE_URL}/report/upload`;
@@ -28,10 +26,11 @@ export const uploadReport = async (file, skipAI = false) => {
     });
 
     if (!res.ok) {
-      throw new Error(`Upload failed with status ${res.status}`);
+      throw new Error(`Upload failed: ${res.status}`);
     }
 
     const data = await res.json();
+
     console.log("✅ Upload response:", data);
 
     return data;
@@ -43,7 +42,7 @@ export const uploadReport = async (file, skipAI = false) => {
 };
 
 // ==============================
-// FETCH SUMMARY
+// ✅ FETCH SUMMARY
 // ==============================
 export const fetchReportSummary = async () => {
   const url = `${BASE_URL}/report/summary`;
@@ -60,7 +59,30 @@ export const fetchReportSummary = async () => {
 
   const data = await res.json();
 
-  console.log("✅ Data from summary:", data);
+  console.log("✅ Summary Data:", data);
+
+  return data;
+};
+
+// ==============================
+// ✅ 🔥 MISSING FUNCTION (CRITICAL FIX)
+// ==============================
+export const fetchReportKpis = async () => {
+  const url = `${BASE_URL}/report/kpis`;
+
+  console.log("📈 Calling KPI API:", url);
+
+  const res = await fetch(url);
+
+  console.log(`📡 KPI Response:`, res.status);
+
+  if (!res.ok) {
+    throw new Error("Failed to fetch KPIs");
+  }
+
+  const data = await res.json();
+
+  console.log("✅ KPI Data:", data);
 
   return data;
 };
@@ -151,6 +173,9 @@ export const fetchConfig = async () => {
   return res.json();
 };
 
+// ==============================
+// UPDATE CONFIG
+// ==============================
 export const updateConfig = async (config) => {
   const res = await fetch(`${BASE_URL}/config`, {
     method: "POST",
