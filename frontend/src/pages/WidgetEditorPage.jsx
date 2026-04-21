@@ -1,23 +1,20 @@
-import { useEffect, useState } from "react";
-import { PencilSimpleLine } from "@phosphor-icons/react";
-
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
-import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
-import { Textarea } from "../components/ui/textarea";
-import { toast } from "../components/ui/sonner";
-import KpiTable from "../components/report/KpiTable";
+import React, { useEffect, useState } from "react";
 import { fetchReport, updateReportWidgets } from "../api/reportApi";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { PencilSimpleLine } from "phosphor-react";
+import { toast } from "sonner";
+
+import KpiTable from "../components/KpiTable";
 
 const metricStatuses = ["GREEN", "AMBER", "RED"];
-const metricCategories = ["SLA", "Workflow Hygiene", "Traceability", "Quality", "Planning"];
-const actionPriorities = ["P0", "P1", "P2"];
-const actionStatuses = ["Not Started", "In Progress", "Completed"];
+const metricCategories = ["Delivery", "Quality", "Process"];
+const actionStatuses = ["Open", "In Progress", "Closed"];
+const actionPriorities = ["Low", "Medium", "High"];
 
-export default function WidgetEditorPage() {
-  const [report, setReport] = useState(null);
-
-  const [isSummaryEditing, setIsSummaryEditing] = useState(false);
+  export default function WidgetEditorPage() {
   const [summaryDraft, setSummaryDraft] = useState(null);
 
   const [isMetricsEditing, setIsMetricsEditing] = useState(false);
