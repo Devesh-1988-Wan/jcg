@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import MainLayout from "./components/layout/MainLayout";
 
@@ -10,17 +10,28 @@ import UploadReportPage from "./pages/UploadReportPage";
 import WidgetEditorPage from "./pages/WidgetEditorPage";
 
 function App() {
+  // ✅ GLOBAL STATE (critical)
+  const [data, setData] = useState([]);
+
   return (
     <Routes>
       <Route path="/" element={<MainLayout />}>
-        <Route index element={<Navigate to="/summary" />} />
 
-        <Route path="summary" element={<ExecutiveSummaryPage />} />
-        <Route path="slides" element={<SlideBriefPage />} />
-        <Route path="findings" element={<DetailedFindingsPage />} />
-        <Route path="appendix" element={<KpiAppendixPage />} />
-        <Route path="upload" element={<UploadReportPage />} />
-        <Route path="editor" element={<WidgetEditorPage />} />
+        {/* Redirect */}
+        <Route index element={<Navigate to="/upload" />} />
+
+        {/* Upload FIRST (important UX) */}
+        <Route path="upload" element={<UploadReportPage setData={setData} />} />
+
+        {/* Dashboard Pages (receive data) */}
+        <Route path="summary" element={<ExecutiveSummaryPage data={data} />} />
+        <Route path="slides" element={<SlideBriefPage data={data} />} />
+        <Route path="findings" element={<DetailedFindingsPage data={data} />} />
+        <Route path="appendix" element={<KpiAppendixPage data={data} />} />
+
+        {/* Editor (optional data) */}
+        <Route path="editor" element={<WidgetEditorPage data={data} />} />
+
       </Route>
     </Routes>
   );
