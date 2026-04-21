@@ -1,3 +1,6 @@
+// ==============================
+// BASE URL
+// ==============================
 const BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
   "http://127.0.0.1:8000";
@@ -5,7 +8,7 @@ const BASE_URL =
 console.log("🌐 API BASE URL:", BASE_URL);
 
 // ==============================
-// 🔥 GENERIC FETCH WRAPPER (KEY FIX)
+// FETCH WRAPPER
 // ==============================
 const fetchWrapper = async (url, options = {}, timeout = 30000) => {
   const controller = new AbortController();
@@ -22,8 +25,7 @@ const fetchWrapper = async (url, options = {}, timeout = 30000) => {
       throw new Error(`API Error (${res.status}): ${text}`);
     }
 
-    const data = await res.json();
-    return data;
+    return await res.json();
 
   } catch (error) {
     if (error.name === "AbortError") {
@@ -44,54 +46,54 @@ export const uploadReport = async (file, skipAI = false) => {
   formData.append("file", file);
   formData.append("skip_ai", skipAI ? "true" : "false");
 
-  const url = `${BASE_URL}/report/upload`;
-
-  console.log("🚀 Upload URL:", url);
-
-  return fetchWrapper(url, {
+  return fetchWrapper(`${BASE_URL}/report/upload`, {
     method: "POST",
     body: formData,
-  }, 60000); // longer timeout for upload
+  }, 60000);
 };
 
 // ==============================
-// FETCH SUMMARY
-// ==============================
-export const fetchReportSummary = async () => {
-  return fetchWrapper(`${BASE_URL}/report/summary`);
-};
-
-// ==============================
-// FETCH KPIs
-// ==============================
-export const fetchReportKpis = async () => {
-  return fetchWrapper(`${BASE_URL}/report/kpis`);
-};
-
-// ==============================
-// FETCH FULL REPORT
+// 🔥 FETCH REPORT (FIXED)
 // ==============================
 export const fetchReport = async () => {
-  return fetchWrapper(`${BASE_URL}/report`);
+  const [summaryRes, kpiRes] = await Promise.all([
+    fetchWrapper(`${BASE_URL}/report/summary`),
+    fetchWrapper(`${BASE_URL}/report/kpis`)
+  ]);
+
+  return {
+    summary: summaryRes || {},
+    kpis: kpiRes?.kpis || []
+  };
 };
 
 // ==============================
-// 🔥 AI STATUS (NEW - REQUIRED)
+// BACKWARD COMPATIBILITY
+// ==============================
+export const fetchReportSummary = async () => {
+  const res = await fetchReport();
+  return res.summary;
+};
+
+export const fetchReportKpis = async () => {
+  const res = await fetchReport();
+  return { kpis: res.kpis };
+};
+
+// ==============================
+// AI STATUS
 // ==============================
 export const fetchAIStatus = async () => {
   return fetchWrapper(`${BASE_URL}/report/ai-status`);
 };
 
 // ==============================
-// FETCH ACTIONS
+// ACTIONS
 // ==============================
 export const fetchReportActions = async () => {
   return fetchWrapper(`${BASE_URL}/report/actions`);
 };
 
-// ==============================
-// UPDATE ACTION
-// ==============================
 export const patchActionStatus = async (id, status) => {
   return fetchWrapper(`${BASE_URL}/report/actions/${id}`, {
     method: "PATCH",
@@ -101,15 +103,12 @@ export const patchActionStatus = async (id, status) => {
 };
 
 // ==============================
-// FETCH WIDGETS
+// WIDGETS
 // ==============================
 export const fetchReportWidgets = async () => {
   return fetchWrapper(`${BASE_URL}/report/widgets`);
 };
 
-// ==============================
-// UPDATE WIDGETS
-// ==============================
 export const updateReportWidgets = async (widgets) => {
   return fetchWrapper(`${BASE_URL}/report/widgets`, {
     method: "PUT",
@@ -119,15 +118,12 @@ export const updateReportWidgets = async (widgets) => {
 };
 
 // ==============================
-// FETCH CONFIG
+// CONFIG
 // ==============================
 export const fetchConfig = async () => {
   return fetchWrapper(`${BASE_URL}/config`);
 };
 
-// ==============================
-// UPDATE CONFIG
-// ==============================
 export const updateConfig = async (config) => {
   return fetchWrapper(`${BASE_URL}/config`, {
     method: "POST",
@@ -135,3 +131,4 @@ export const updateConfig = async (config) => {
     body: JSON.stringify(config),
   });
 };
+

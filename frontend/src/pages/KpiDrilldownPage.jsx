@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { fetchReport } from "../api/reportApi";
+import { useParams, useNavigate } from "react-router-dom";
+
+import { fetchReport, fetchConfig } from "../api/reportApi";
+import { normalizeKpi } from "../utils/normalizeKpi";
+import { filterKpis } from "../utils/filterKpis";
+import { scoreKpis } from "../utils/ragScoring";
 
 const KpiDrilldownPage = () => {
   const { id } = useParams();
@@ -7,18 +12,35 @@ const KpiDrilldownPage = () => {
 
   const [kpi, setKpi] = useState(null);
   const [config, setConfig] = useState(null);
+  const [scoredData, setScoredData] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // ---------------------------
+  // LOAD DATA
+  // ---------------------------
   useEffect(() => {
     const loadData = async () => {
       try {
         const report = await fetchReport();
         const cfg = await fetchConfig();
 
-        const found = report.kpis.find((k) => k.id === id);
+        // ✅ Normalize (generic handling)
+        const normalized = (report.kpis || []).map(normalizeKpi);
+
+        // ✅ Filter + Score (aligned with your architecture)
+        const filtered = filterKpis(normalized);
+        const scored = scoreKpis(filtered);
+
+        setScoredData(scored);
+
+        // ✅ Fix ID mismatch (string vs number)
+        const found = normalized.find(
+          (k) => String(k.id) === String(id)
+        );
 
         setKpi(found);
         setConfig(cfg);
+
       } catch (err) {
         console.error("Error loading KPI:", err);
       } finally {
@@ -30,31 +52,40 @@ const KpiDrilldownPage = () => {
   }, [id]);
 
   if (loading) return <div>Loading KPI details...</div>;
-
   if (!kpi) return <div>KPI not found</div>;
 
-  // 🔍 Find KPI config
+  // ---------------------------
+  // KPI CONFIG RESOLUTION
+  // ---------------------------
   const kpiRule =
     config?.kpi_rules?.find(
-      (r) => r.id === kpi.id || kpi.name.toLowerCase().includes(r.name.toLowerCase())
+      (r) =>
+        String(r.id) === String(kpi.id) ||
+        kpi.name.toLowerCase().includes(r.name?.toLowerCase() || "")
     ) || null;
 
-  // 🎯 Resolve thresholds
   const redThreshold =
-    kpiRule?.thresholds?.red ?? config?.global_thresholds?.red;
+    kpiRule?.thresholds?.red ?? config?.global_thresholds?.red ?? 25;
 
   const amberThreshold =
-    kpiRule?.thresholds?.amber ?? config?.global_thresholds?.amber;
+    kpiRule?.thresholds?.amber ?? config?.global_thresholds?.amber ?? 5;
 
-  // 🔴 Risk badge
+  // ---------------------------
+  // UI HELPERS
+  // ---------------------------
   const getRiskColor = (status) => {
     if (status === "RED") return "red";
     if (status === "AMBER") return "orange";
     return "green";
   };
 
-  const isMismatch = kpi.original_status !== kpi.status;
+  const isMismatch =
+    kpi.original_status &&
+    kpi.original_status !== kpi.status;
 
+  // ---------------------------
+  // UI
+  // ---------------------------
   return (
     <div style={{ padding: "20px" }}>
       <button onClick={() => navigate(-1)}>⬅ Back</button>
@@ -63,7 +94,7 @@ const KpiDrilldownPage = () => {
         {kpi.id} - {kpi.name}
       </h1>
 
-      {/* KPI VALUE */}
+      {/* VALUE */}
       <div style={{ marginTop: "20px" }}>
         <h2>Value: {kpi.value}%</h2>
       </div>
@@ -77,12 +108,14 @@ const KpiDrilldownPage = () => {
           </span>
         </h3>
 
-        <h4>
-          Original Status:{" "}
-          <span style={{ color: getRiskColor(kpi.original_status) }}>
-            {kpi.original_status}
-          </span>
-        </h4>
+        {kpi.original_status && (
+          <h4>
+            Original Status:{" "}
+            <span style={{ color: getRiskColor(kpi.original_status) }}>
+              {kpi.original_status}
+            </span>
+          </h4>
+        )}
 
         {isMismatch && (
           <div style={{ color: "red", marginTop: "10px" }}>
@@ -91,25 +124,14 @@ const KpiDrilldownPage = () => {
         )}
       </div>
 
-      {/* GOVERNANCE DETAILS */}
+      {/* GOVERNANCE */}
       <div style={{ marginTop: "30px" }}>
         <h3>Governance Configuration</h3>
 
-        <p>
-          <strong>Category:</strong> {kpi.category}
-        </p>
-
-        <p>
-          <strong>Weight:</strong> {kpi.weight}
-        </p>
-
-        <p>
-          <strong>Red Threshold:</strong> {redThreshold}%
-        </p>
-
-        <p>
-          <strong>Amber Threshold:</strong> {amberThreshold}%
-        </p>
+        <p><strong>Category:</strong> {kpi.category || "N/A"}</p>
+        <p><strong>Weight:</strong> {kpi.weight || "Default"}</p>
+        <p><strong>Red Threshold:</strong> {redThreshold}%</p>
+        <p><strong>Amber Threshold:</strong> {amberThreshold}%</p>
 
         <p>
           <strong>Threshold Source:</strong>{" "}
@@ -123,24 +145,24 @@ const KpiDrilldownPage = () => {
 
         {kpi.status === "RED" && (
           <p style={{ color: "red" }}>
-            This KPI is in critical condition and requires immediate action.
+            Critical condition. Immediate action required.
           </p>
         )}
 
         {kpi.status === "AMBER" && (
           <p style={{ color: "orange" }}>
-            This KPI indicates moderate risk and should be monitored closely.
+            Moderate risk. Monitor closely.
           </p>
         )}
 
         {kpi.status === "GREEN" && (
           <p style={{ color: "green" }}>
-            This KPI is within acceptable limits.
+            Within acceptable limits.
           </p>
         )}
       </div>
 
-      {/* ACTION SUGGESTIONS */}
+      {/* ACTIONS */}
       <div style={{ marginTop: "30px" }}>
         <h3>Recommended Actions</h3>
 
@@ -168,7 +190,7 @@ const KpiDrilldownPage = () => {
         {kpi.category === "PREDICTABILITY" && (
           <ul>
             <li>Control scope creep</li>
-            <li>Improve sprint commitment discipline</li>
+            <li>Improve sprint discipline</li>
           </ul>
         )}
       </div>
@@ -177,3 +199,4 @@ const KpiDrilldownPage = () => {
 };
 
 export default KpiDrilldownPage;
+
