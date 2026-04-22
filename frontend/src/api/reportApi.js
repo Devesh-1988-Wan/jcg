@@ -8,9 +8,9 @@ const BASE_URL =
 console.log("🌐 API BASE URL:", BASE_URL);
 
 // ==============================
-// FETCH WRAPPER
+// FETCH WRAPPER (ENHANCED)
 // ==============================
-const fetchWrapper = async (url, options = {}, timeout = 30000) => {
+const fetchWrapper = async (url, options = {}, timeout = 30000, retries = 1) => {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
 
@@ -20,28 +20,67 @@ const fetchWrapper = async (url, options = {}, timeout = 30000) => {
       signal: controller.signal,
     });
 
-    if (!res.ok) {
+    // 🔍 Handle non-JSON safely
+    const contentType = res.headers.get("content-type") || "";
+
+    let data;
+    if (contentType.includes("application/json")) {
+      data = await res.json();
+    } else {
       const text = await res.text();
-      throw new Error(`API Error (${res.status}): ${text}`);
+      data = { message: text };
     }
 
-    return await res.json();
+    if (!res.ok) {
+      throw new Error(
+        `API Error (${res.status}): ${data?.message || JSON.stringify(data)}`
+      );
+    }
+
+    return data;
 
   } catch (error) {
+    // 🔁 Retry logic (network flakiness)
+    if (retries > 0) {
+      console.warn("🔁 Retrying request:", url);
+      return fetchWrapper(url, options, timeout, retries - 1);
+    }
+
     if (error.name === "AbortError") {
       throw new Error("Request timeout");
     }
-    console.error("❌ API Error:", error);
-    throw error;
+
+    // 🚨 Better debug info
+    console.error("❌ API Error:", {
+      url,
+      method: options?.method || "GET",
+      error: error.message,
+    });
+
+    throw new Error(
+      error.message === "Failed to fetch"
+        ? "Backend not reachable. Is server running?"
+        : error.message
+    );
+
   } finally {
     clearTimeout(id);
   }
 };
 
 // ==============================
+// 🔍 HEALTH CHECK (NEW)
+// ==============================
+export const checkBackend = async () => {
+  return fetchWrapper(`${BASE_URL}/`);
+};
+
+// ==============================
 // UPLOAD REPORT
 // ==============================
 export const uploadReport = async (file, skipAI = false) => {
+  if (!file) throw new Error("No file selected");
+
   const formData = new FormData();
   formData.append("file", file);
   formData.append("skip_ai", skipAI ? "true" : "false");
@@ -53,18 +92,23 @@ export const uploadReport = async (file, skipAI = false) => {
 };
 
 // ==============================
-// 🔥 FETCH REPORT (FIXED)
+// FETCH REPORT
 // ==============================
 export const fetchReport = async () => {
-  const [summaryRes, kpiRes] = await Promise.all([
-    fetchWrapper(`${BASE_URL}/report/summary`),
-    fetchWrapper(`${BASE_URL}/report/kpis`)
-  ]);
+  try {
+    const [summaryRes, kpiRes] = await Promise.all([
+      fetchWrapper(`${BASE_URL}/report/summary`),
+      fetchWrapper(`${BASE_URL}/report/kpis`)
+    ]);
 
-  return {
-    summary: summaryRes || {},
-    kpis: kpiRes?.kpis || []
-  };
+    return {
+      summary: summaryRes || {},
+      kpis: kpiRes?.kpis || []
+    };
+  } catch (err) {
+    console.error("❌ fetchReport failed:", err);
+    return { summary: {}, kpis: [] };
+  }
 };
 
 // ==============================
@@ -95,6 +139,8 @@ export const fetchReportActions = async () => {
 };
 
 export const patchActionStatus = async (id, status) => {
+  if (!id) throw new Error("Missing action ID");
+
   return fetchWrapper(`${BASE_URL}/report/actions/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -131,4 +177,3 @@ export const updateConfig = async (config) => {
     body: JSON.stringify(config),
   });
 };
-
