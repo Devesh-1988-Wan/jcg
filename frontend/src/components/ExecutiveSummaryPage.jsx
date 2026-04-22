@@ -1,37 +1,28 @@
 import React, { useMemo } from "react";
-import StatCard from "./StatCard";
 import RiskTable from "./RiskTable";
 import TrendChart from "./TrendChart";
+import { PieChart, Pie, Cell, Tooltip } from "recharts";
 
 export default function ExecutiveSummary({ data = [], aiInsights }) {
 
-  // ---------------------------
-  // VALIDATION
-  // ---------------------------
   if (!Array.isArray(data) || data.length === 0) {
-    return (
-      <div className="p-6 text-gray-500">
-        No Data Available. Please upload a report.
-      </div>
-    );
+    return <div className="p-6 text-gray-500">No Data Available.</div>;
   }
 
   // ---------------------------
-  // NORMALIZE (MEMOIZED)
+  // NORMALIZE
   // ---------------------------
   const normalized = useMemo(() => {
     return data.map((d) => ({
-      id: d?.id || "",
       name: d?.name || "Unknown",
       value: Number(d?.value) || 0,
-      status: (d?.status || d?.rag || "GREEN").toUpperCase(),
+      status: (d?.status || "GREEN").toUpperCase(),
       category: d?.category || "OTHER",
-      risk: d?.risk || ""
     }));
   }, [data]);
 
   // ---------------------------
-  // KPI COUNTS
+  // RAG COUNTS
   // ---------------------------
   const { red, amber, green } = useMemo(() => {
     let red = 0, amber = 0, green = 0;
@@ -39,14 +30,14 @@ export default function ExecutiveSummary({ data = [], aiInsights }) {
     normalized.forEach((d) => {
       if (d.status === "RED") red++;
       else if (d.status === "AMBER") amber++;
-      else if (d.status === "GREEN") green++;
+      else green++;
     });
 
     return { red, amber, green };
   }, [normalized]);
 
   // ---------------------------
-  // COMPLIANCE SCORE
+  // COMPLIANCE
   // ---------------------------
   const compliance = useMemo(() => {
     if (!normalized.length) return 0;
@@ -62,6 +53,17 @@ export default function ExecutiveSummary({ data = [], aiInsights }) {
   }, [normalized]);
 
   // ---------------------------
+  // CHART DATA
+  // ---------------------------
+  const chartData = [
+    { name: "Red", value: red },
+    { name: "Amber", value: amber },
+    { name: "Green", value: green },
+  ];
+
+  const COLORS = ["#ef4444", "#f59e0b", "#22c55e"];
+
+  // ---------------------------
   // TOP RISKS
   // ---------------------------
   const topRisks = useMemo(() => {
@@ -72,78 +74,24 @@ export default function ExecutiveSummary({ data = [], aiInsights }) {
   }, [normalized]);
 
   // ---------------------------
-  // CATEGORY RISK
-  // ---------------------------
-  const categoryStats = useMemo(() => {
-    const map = {};
-
-    normalized.forEach((d) => {
-      if (!map[d.category]) {
-        map[d.category] = { total: 0, red: 0 };
-      }
-
-      map[d.category].total++;
-      if (d.status === "RED") map[d.category].red++;
-    });
-
-    return Object.entries(map)
-      .map(([category, val]) => ({
-        category,
-        riskScore: val.total
-          ? Math.round((val.red / val.total) * 100)
-          : 0
-      }))
-      .sort((a, b) => b.riskScore - a.riskScore);
-  }, [normalized]);
-
-  // ---------------------------
-  // EXECUTIVE INSIGHT (RULE-BASED)
-  // ---------------------------
-  const insight = useMemo(() => {
-    if (red > normalized.length * 0.4) {
-      return "Severe governance risk detected with widespread KPI breaches.";
-    }
-
-    if (topRisks.some(r =>
-      r.name.toLowerCase().includes("scope") ||
-      r.name.toLowerCase().includes("spill")
-    )) {
-      return "Predictability issues observed due to scope creep and spillover.";
-    }
-
-    if (topRisks.some(r =>
-      r.name.toLowerCase().includes("cycle") ||
-      r.name.toLowerCase().includes("lead")
-    )) {
-      return "Flow efficiency issues detected with elevated cycle and lead time.";
-    }
-
-    return "Governance is moderately stable with localized improvement areas.";
-  }, [normalized, red, topRisks]);
-
-  // ---------------------------
   // TREND MOCK
   // ---------------------------
-  const trendMock = useMemo(() => [
+  const trendMock = [
     { name: "Week 1", value: 65 },
     { name: "Week 2", value: 58 },
     { name: "Week 3", value: 52 },
-    { name: "Week 4", value: compliance }
-  ], [compliance]);
+    { name: "Week 4", value: compliance },
+  ];
 
   // ---------------------------
-  // TREND DIRECTION
+  // CARD
   // ---------------------------
-  const trendDirection = useMemo(() => {
-    if (trendMock.length < 2) return "-";
-
-    const last = trendMock[trendMock.length - 1].value;
-    const prev = trendMock[trendMock.length - 2].value;
-
-    if (last > prev) return "↑";
-    if (last < prev) return "↓";
-    return "→";
-  }, [trendMock]);
+  const Card = ({ title, value, color }) => (
+    <div className="p-4 border rounded-xl shadow-sm bg-white">
+      <div className="text-sm text-gray-500">{title}</div>
+      <div className={`text-xl font-bold ${color}`}>{value}</div>
+    </div>
+  );
 
   // ---------------------------
   // RENDER
@@ -151,12 +99,46 @@ export default function ExecutiveSummary({ data = [], aiInsights }) {
   return (
     <div className="space-y-6">
 
-      {/* KPI SUMMARY */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <StatCard title="Compliance Score" value={`${compliance}%`} trend={trendDirection} />
-        <StatCard title="Critical Risks (Red)" value={red} />
-        <StatCard title="Warnings (Amber)" value={amber} />
-        <StatCard title="Healthy (Green)" value={green} />
+      {/* KPI + DONUT */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+
+        {/* KPI CARDS */}
+        <div className="grid grid-cols-2 gap-4">
+          <Card title="Compliance Score" value={`${compliance}%`} color="text-gray-800" />
+          <Card title="Critical Risks" value={red} color="text-red-600" />
+          <Card title="Warnings" value={amber} color="text-yellow-600" />
+          <Card title="Healthy" value={green} color="text-green-600" />
+        </div>
+
+        {/* DONUT CHART */}
+        <div className="flex justify-center">
+          <PieChart width={260} height={260}>
+            <Pie
+              data={chartData}
+              dataKey="value"
+              innerRadius={70}
+              outerRadius={100}
+            >
+              {chartData.map((_, i) => (
+                <Cell key={i} fill={COLORS[i]} />
+              ))}
+            </Pie>
+
+            {/* CENTER TEXT */}
+            <text
+              x="50%"
+              y="50%"
+              textAnchor="middle"
+              dominantBaseline="middle"
+              className="text-xl font-bold fill-gray-700"
+            >
+              {compliance}%
+            </text>
+
+            <Tooltip />
+          </PieChart>
+        </div>
+
       </div>
 
       {/* TREND + RISKS */}
@@ -165,66 +147,38 @@ export default function ExecutiveSummary({ data = [], aiInsights }) {
         <RiskTable data={topRisks} />
       </div>
 
-      {/* CATEGORY VIEW */}
-      <div className="bg-white p-4 rounded-2xl shadow">
-        <h3 className="font-semibold mb-3">Risk by Category</h3>
-
-        <div className="space-y-2">
-          {categoryStats.map((c, i) => (
-            <div key={i} className="flex justify-between text-sm">
-              <span>{c.category}</span>
-              <span className="font-medium">{c.riskScore}% risk</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* RULE-BASED INSIGHT */}
-      <div className="bg-white p-4 rounded-2xl shadow">
-        <h3 className="font-semibold mb-2">Executive Insight</h3>
-        <p className="text-gray-600">{insight}</p>
-      </div>
-
-      {/* 🔥 AI INSIGHTS (NEW) */}
+      {/* AI INSIGHTS */}
       <div className="bg-white p-4 rounded-2xl shadow">
         <h3 className="font-semibold mb-3">AI Insights</h3>
 
         {!aiInsights ? (
-          <div className="text-gray-400 text-sm">
-            Generating insights...
-          </div>
+          <div className="text-gray-400 text-sm">Generating insights...</div>
         ) : (
           <div className="space-y-3 text-sm">
 
             {aiInsights.risks?.length > 0 && (
               <div>
-                <div className="font-medium text-red-600 mb-1">🔴 Top Risks</div>
+                <div className="text-red-600 font-medium mb-1">🔴 Risks</div>
                 <ul className="list-disc ml-5">
-                  {aiInsights.risks.map((r, i) => (
-                    <li key={i}>{r}</li>
-                  ))}
+                  {aiInsights.risks.map((r, i) => <li key={i}>{r}</li>)}
                 </ul>
               </div>
             )}
 
             {aiInsights.causes?.length > 0 && (
               <div>
-                <div className="font-medium text-yellow-600 mb-1">🧠 Root Causes</div>
+                <div className="text-yellow-600 font-medium mb-1">🧠 Causes</div>
                 <ul className="list-disc ml-5">
-                  {aiInsights.causes.map((c, i) => (
-                    <li key={i}>{c}</li>
-                  ))}
+                  {aiInsights.causes.map((c, i) => <li key={i}>{c}</li>)}
                 </ul>
               </div>
             )}
 
             {aiInsights.actions?.length > 0 && (
               <div>
-                <div className="font-medium text-green-600 mb-1">⚡ Actions</div>
+                <div className="text-green-600 font-medium mb-1">⚡ Actions</div>
                 <ul className="list-disc ml-5">
-                  {aiInsights.actions.map((a, i) => (
-                    <li key={i}>{a}</li>
-                  ))}
+                  {aiInsights.actions.map((a, i) => <li key={i}>{a}</li>)}
                 </ul>
               </div>
             )}
@@ -236,4 +190,3 @@ export default function ExecutiveSummary({ data = [], aiInsights }) {
     </div>
   );
 }
-

@@ -1,122 +1,104 @@
-@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Work+Sans:wght@400;500;600;700&display=swap");
+/* ---------------------------
+   GOOGLE FONTS
+---------------------------- */
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap");
 
+/* ---------------------------
+   TAILWIND
+---------------------------- */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-body {
+/* ---------------------------
+   BASE STYLES
+---------------------------- */
+@layer base {
+  :root {
+    --background: 220 24% 99%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --primary: 223 100% 33%;
+    --secondary: 220 14% 96%;
+
+    --muted: 220 14% 95%;
+    --muted-foreground: 220 9% 40%;
+
+    --border: 220 13% 91%;
+
+    --chart-red: 0 73% 49%;
+    --chart-amber: 41 96% 51%;
+    --chart-green: 160 84% 39%;
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 0 0% 4%;
+    --foreground: 0 0% 98%;
+
+    --card: 0 0% 4%;
+    --card-foreground: 0 0% 98%;
+
+    --border: 0 0% 15%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
     margin: 0;
     font-family: "Work Sans", sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-}
 
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
+    background: hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
+
+  h1, h2, h3, h4, h5, h6 {
     font-family: "Outfit", sans-serif;
+  }
+
+  code {
+    font-family: "IBM Plex Mono", monospace;
+  }
 }
 
-code {
-    font-family: "IBM Plex Mono", Menlo, Monaco, Consolas, "Courier New", monospace;
-}
-
+/* ---------------------------
+   DEBUG WRAPPER (SAFE)
+---------------------------- */
 @layer base {
-    :root {
-        --background: 220 24% 99%;
-        --foreground: 222 47% 11%;
-        --card: 0 0% 100%;
-        --card-foreground: 222 47% 11%;
-        --popover: 0 0% 100%;
-        --popover-foreground: 222 47% 11%;
-        --primary: 223 100% 33%;
-        --primary-foreground: 0 0% 100%;
-        --secondary: 220 14% 96%;
-        --secondary-foreground: 220 35% 14%;
-        --muted: 220 14% 95%;
-        --muted-foreground: 220 9% 40%;
-        --accent: 213 94% 94%;
-        --accent-foreground: 223 100% 27%;
-        --destructive: 0 73% 49%;
-        --destructive-foreground: 0 0% 98%;
-        --border: 220 13% 91%;
-        --input: 220 13% 91%;
-        --ring: 223 100% 33%;
-        --chart-1: 223 100% 33%;
-        --chart-2: 160 84% 39%;
-        --chart-3: 41 96% 51%;
-        --chart-4: 0 73% 49%;
-        --chart-5: 210 40% 45%;
-        --radius: 0.25rem;
-    }
-    .dark {
-        --background: 0 0% 3.9%;
-        --foreground: 0 0% 98%;
-        --card: 0 0% 3.9%;
-        --card-foreground: 0 0% 98%;
-        --popover: 0 0% 3.9%;
-        --popover-foreground: 0 0% 98%;
-        --primary: 0 0% 98%;
-        --primary-foreground: 0 0% 9%;
-        --secondary: 0 0% 14.9%;
-        --secondary-foreground: 0 0% 98%;
-        --muted: 0 0% 14.9%;
-        --muted-foreground: 0 0% 63.9%;
-        --accent: 0 0% 14.9%;
-        --accent-foreground: 0 0% 98%;
-        --destructive: 0 62.8% 30.6%;
-        --destructive-foreground: 0 0% 98%;
-        --border: 0 0% 14.9%;
-        --input: 0 0% 14.9%;
-        --ring: 0 0% 83.1%;
-        --chart-1: 220 70% 50%;
-        --chart-2: 160 60% 45%;
-        --chart-3: 30 80% 55%;
-        --chart-4: 280 65% 60%;
-        --chart-5: 340 75% 55%;
-    }
+  [data-debug-wrapper="true"] {
+    display: contents !important;
+  }
 }
 
-@layer base {
-    * {
-        @apply border-border;
-    }
-    body {
-        @apply bg-background text-foreground;
-    }
+/* ---------------------------
+   PDF EXPORT STYLING
+---------------------------- */
+.pdf-page {
+  width: 794px;              /* A4 width */
+  min-height: 1123px;        /* A4 height */
+  padding: 24px;
+  background: white;
+  overflow: hidden;
+
+  page-break-after: always;
 }
 
-@layer base {
-    [data-debug-wrapper="true"] {
-        display: contents !important;
-    }
+/* Optional: improve PDF spacing */
+.pdf-page h2 {
+  margin-bottom: 10px;
+}
 
-    [data-debug-wrapper="true"] > * {
-        margin-left: inherit;
-        margin-right: inherit;
-        margin-top: inherit;
-        margin-bottom: inherit;
-        padding-left: inherit;
-        padding-right: inherit;
-        padding-top: inherit;
-        padding-bottom: inherit;
-        column-gap: inherit;
-        row-gap: inherit;
-        gap: inherit;
-        border-left-width: inherit;
-        border-right-width: inherit;
-        border-top-width: inherit;
-        border-bottom-width: inherit;
-        border-left-style: inherit;
-        border-right-style: inherit;
-        border-top-style: inherit;
-        border-bottom-style: inherit;
-        border-left-color: inherit;
-        border-right-color: inherit;
-        border-top-color: inherit;
-        border-bottom-color: inherit;
-    }
+/* ---------------------------
+   UTILITIES
+---------------------------- */
+.card {
+  @apply bg-white border rounded-xl shadow-sm p-4;
 }
