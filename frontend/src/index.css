@@ -79,16 +79,19 @@
 }
 
 /* ---------------------------
-   PDF EXPORT STYLING
+   PDF EXPORT STYLING  ✅ ADD HERE
 ---------------------------- */
 .pdf-page {
-  width: 794px;              /* A4 width */
-  min-height: 1123px;        /* A4 height */
+  width: 794px;
+  min-height: 1123px;
   padding: 24px;
   background: white;
-  overflow: hidden;
 
-  page-break-after: always;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+
+  overflow: hidden;
 }
 
 /* Optional: improve PDF spacing */

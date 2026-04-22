@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, useNavigate } from "react-router-dom";
 
 import MainLayout from "./components/layout/MainLayout";
 
@@ -24,27 +24,59 @@ export default function App() {
       {/* MAIN APP */}
       <Route path="/" element={<MainLayout />}>
 
+        {/* DEFAULT → UPLOAD */}
         <Route
           index
           element={
-            <UploadReportPage
-              onUploadSuccess={({ reportData }) => setKpis(reportData)}
-            />
+            <UploadWrapper setKpis={setKpis} />
           }
         />
 
+        {/* EXPLICIT UPLOAD */}
         <Route
-          path="dashboard"
-          element={<DashboardPage kpis={kpis} setKpis={setKpis} />}
+          path="upload"
+          element={
+            <UploadWrapper setKpis={setKpis} />
+          }
         />
 
+        {/* DASHBOARD */}
+        <Route
+          path="dashboard"
+          element={<DashboardPage kpis={kpis} />}
+        />
+
+        {/* OTHER PAGES */}
         <Route path="summary" element={<ExecutiveSummaryPage data={kpis} />} />
         <Route path="slides" element={<SlideBriefPage data={kpis} />} />
         <Route path="findings" element={<DetailedFindingsPage data={kpis} />} />
         <Route path="appendix" element={<KpiAppendixPage data={kpis} />} />
         <Route path="editor" element={<WidgetEditorPage data={kpis} />} />
 
+        {/* FALLBACK */}
+        <Route path="*" element={<div className="p-6">Page Not Found</div>} />
+
       </Route>
     </Routes>
+  );
+}
+
+/* ---------------------------
+   UPLOAD WRAPPER (CRITICAL FIX)
+---------------------------- */
+function UploadWrapper({ setKpis }) {
+  const navigate = useNavigate();
+
+  return (
+    <UploadReportPage
+      onUploadSuccess={({ reportData }) => {
+        setKpis(reportData);     // ✅ update global state
+
+        console.log("✅ NEW DATA LOADED:", reportData);
+
+        // 🔥 IMPORTANT: move to dashboard
+        navigate("/dashboard");
+      }}
+    />
   );
 }

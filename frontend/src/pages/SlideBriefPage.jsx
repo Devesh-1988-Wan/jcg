@@ -1,122 +1,167 @@
 import React, { useEffect, useState } from "react";
-import { fetchReport } from "../api/reportApi";
 
-const SlideBriefPage = () => {
-  const [report, setReport] = useState("");
+const SlideBriefPage = ({ data = [] }) => {
   const [slides, setSlides] = useState([]);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(true);
 
   // ---------------------------
-  // LOAD + POLL REPORT
+  // TYPE DETECTION (PDF-BASED)
   // ---------------------------
-  useEffect(() => {
-    let interval;
+  const detectType = (kpis) => {
+    const text = kpis.map(k => k.name.toLowerCase()).join(" ");
 
-    const loadReport = async () => {
-      try {
-        const res = await fetchReport();
+    if (
+      text.includes("aging") ||
+      text.includes("wip") ||
+      text.includes("cycle") ||
+      text.includes("throughput")
+    ) return "GOVERNANCE";
 
-        // 🔥 Handle async AI case
-        if (!res.report || res.report === "Processing...") {
-          setLoading(true);
-          return;
-        }
+    if (
+      text.includes("audit") ||
+      text.includes("bugs") ||
+      text.includes("resolution") ||
+      text.includes("estimate")
+    ) return "COMPLIANCE";
 
-        setReport(res.report);
-        generateSlides(res.report);
-        setLoading(false);
-
-        // Stop polling once report is ready
-        if (interval) clearInterval(interval);
-
-      } catch (err) {
-        console.error("Slide load error:", err);
-        setError("Upload report first to generate slides.");
-        setLoading(false);
-      }
-    };
-
-    // Initial load
-    loadReport();
-
-    // 🔥 Poll every 4 sec until AI completes
-    interval = setInterval(loadReport, 4000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  // ---------------------------
-  // BETTER SLIDE GENERATION
-  // ---------------------------
-  const generateSlides = (text) => {
-    if (!text) return;
-
-    // Split by sections instead of raw lines
-    const sections = text
-      .split(/\n{2,}/) // split by paragraphs
-      .map((s) => s.trim())
-      .filter(Boolean);
-
-    const generatedSlides = sections.slice(0, 5).map((section, index) => {
-      const lines = section.split("\n");
-
-      return {
-        title: lines[0]?.slice(0, 80) || `Slide ${index + 1}`,
-        content: lines.slice(1).join(" ") || lines[0],
-      };
-    });
-
-    setSlides(generatedSlides);
+    return "GENERIC";
   };
 
   // ---------------------------
-  // UI STATES
+  // GENERATE SLIDES FROM PDF DATA
   // ---------------------------
-  if (loading) {
-    return (
-      <div style={{ padding: "20px", color: "#666" }}>
-        ⏳ Generating slides from AI report...
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (!data.length) return;
 
-  if (error) {
-    return (
-      <div style={{ padding: "20px", color: "red" }}>
-        {error}
-      </div>
-    );
-  }
+    const type = detectType(data);
 
-  if (!slides.length) {
-    return (
-      <div style={{ padding: "20px", color: "#666" }}>
-        No slides generated yet.
-      </div>
-    );
-  }
+    const red = data.filter(k => k.status === "RED");
+    const amber = data.filter(k => k.status === "AMBER");
+    const green = data.filter(k => k.status === "GREEN");
+
+    const topRisks = red
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5)
+      .map(k => `${k.name} (${k.value}%)`)
+      .join(", ");
+
+    // ---------------------------
+    // GOVERNANCE (Flow-based PDFs)
+    // ---------------------------
+    if (type === "GOVERNANCE") {
+      setSlides([
+        {
+          title: "Delivery Health Summary",
+          content: `Total KPIs: ${data.length}, Critical Risks: ${red.length}, Warnings: ${amber.length}, Healthy: ${green.length}`
+        },
+        {
+          title: "Flow & Aging Risks",
+          content: data
+            .filter(k => k.name.toLowerCase().includes("aging") || k.name.toLowerCase().includes("wip"))
+            .slice(0, 5)
+            .map(k => `${k.name} (${k.value}%)`)
+            .join(", ")
+        },
+        {
+          title: "Throughput & Cycle Efficiency",
+          content: data
+            .filter(k => k.name.toLowerCase().includes("cycle") || k.name.toLowerCase().includes("throughput"))
+            .map(k => `${k.name} (${k.value}%)`)
+            .join(", ")
+        },
+        {
+          title: "Top Risk Drivers",
+          content: topRisks
+        },
+        {
+          title: "Recommendations",
+          content: "Reduce aging items, enforce WIP limits, and improve flow efficiency."
+        }
+      ]);
+      return;
+    }
+
+    // ---------------------------
+    // COMPLIANCE (Audit PDFs)
+    // ---------------------------
+    if (type === "COMPLIANCE") {
+      setSlides([
+        {
+          title: "Compliance Overview",
+          content: `Critical Violations: ${red.length}, Partial Compliance: ${amber.length}, Fully Compliant: ${green.length}`
+        },
+        {
+          title: "Critical Compliance Gaps",
+          content: topRisks
+        },
+        {
+          title: "Data Integrity Issues",
+          content: data
+            .filter(k => k.name.toLowerCase().includes("missing"))
+            .map(k => `${k.name} (${k.value}%)`)
+            .join(", ")
+        },
+        {
+          title: "SLA & Resolution Issues",
+          content: data
+            .filter(k => k.name.toLowerCase().includes("resolution"))
+            .map(k => `${k.name} (${k.value}%)`)
+            .join(", ")
+        },
+        {
+          title: "Recommendations",
+          content: "Fix missing fields, enforce estimation discipline, and improve SLA compliance."
+        }
+      ]);
+      return;
+    }
+
+    // ---------------------------
+    // GENERIC FALLBACK
+    // ---------------------------
+    setSlides([
+      {
+        title: "Overview",
+        content: `Total KPIs: ${data.length}`
+      },
+      {
+        title: "Top Risks",
+        content: topRisks
+      },
+      {
+        title: "Insights",
+        content: "Multiple performance issues observed across KPIs."
+      },
+      {
+        title: "Focus Areas",
+        content: "Prioritize high-risk KPIs and improve process consistency."
+      },
+      {
+        title: "Recommendations",
+        content: "Address critical risks and improve monitoring."
+      }
+    ]);
+
+  }, [data]);
 
   // ---------------------------
   // UI
   // ---------------------------
+  if (!data.length) {
+    return (
+      <div className="p-6 text-gray-500">
+        No data available. Please upload a report.
+      </div>
+    );
+  }
+
   return (
-    <div style={{ padding: "20px" }}>
-      <h2>Slide Brief</h2>
+    <div className="p-6 space-y-4">
+      <h2 className="text-xl font-semibold">Slide Brief</h2>
 
       {slides.map((slide, index) => (
-        <div
-          key={index}
-          style={{
-            marginTop: "15px",
-            padding: "15px",
-            border: "1px solid #ccc",
-            borderRadius: "8px",
-            background: "#fafafa",
-          }}
-        >
-          <h3>{slide.title}</h3>
-          <p>{slide.content}</p>
+        <div key={index} className="p-4 border rounded-lg bg-gray-50">
+          <h3 className="font-semibold">{slide.title}</h3>
+          <p className="text-gray-600 mt-1">{slide.content}</p>
         </div>
       ))}
     </div>

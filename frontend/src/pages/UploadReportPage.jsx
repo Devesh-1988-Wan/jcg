@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
 import { uploadReport } from "../api/reportApi";
+import { normalizeKpi } from "../utils/normalizeKpi";
 import { useNavigate } from "react-router-dom";
 
-export default function UploadReportPage() {
+export default function UploadReportPage({ onUploadSuccess }) {
   const [file, setFile] = useState(null);
   const [skipAI, setSkipAI] = useState(false);
   const [loading, setLoading] = useState(false);
   const [report, setReport] = useState("");
-  const [kpis, setKpis] = useState([]); // ✅ FIX
 
   const navigate = useNavigate();
 
@@ -19,7 +19,7 @@ export default function UploadReportPage() {
   };
 
   // ---------------------------
-  // UPLOAD HANDLER
+  // UPLOAD HANDLER (FIXED)
   // ---------------------------
   const handleUpload = async () => {
     if (!file) {
@@ -34,13 +34,18 @@ export default function UploadReportPage() {
 
       console.log("UPLOAD SUCCESS:", res);
 
-      setKpis(res.data);
-      setReport(res.report); // "Processing..." or final
+      const raw = res?.data || res?.kpis || [];
+      const normalized = raw.map(normalizeKpi);
 
-      // Optional: store for dashboard
-      localStorage.setItem("kpis", JSON.stringify(res.data));
+      // ✅ update global state
+      onUploadSuccess({
+        reportData: normalized,
+      });
 
-      // Navigate immediately (AI will load later)
+      // optional AI report
+      setReport(res.report);
+
+      // navigate to dashboard
       navigate("/dashboard");
 
     } catch (error) {
@@ -52,7 +57,7 @@ export default function UploadReportPage() {
   };
 
   // ---------------------------
-  // AI POLLING (BACKGROUND)
+  // AI POLLING (OPTIONAL)
   // ---------------------------
   useEffect(() => {
     if (report !== "Processing...") return;
@@ -64,7 +69,6 @@ export default function UploadReportPage() {
 
         if (data.status === "completed") {
           setReport(data.report);
-          localStorage.setItem("report", data.report); // ✅ store final AI report
           clearInterval(interval);
         }
       } catch (err) {

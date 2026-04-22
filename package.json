@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "pptxgenjs": "^4.0.1",
     "recharts": "^3.8.1",
     "tailwindcss-animate": "^1.0.7"
   }
