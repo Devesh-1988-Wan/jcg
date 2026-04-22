@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import ExecutiveSummary from "../components/ExecutiveSummaryPage";
 import ExportPdfModal from "../components/ExportPdfModal";
 import { generateAIInsights } from "../services/aiService";
+import { generatePresentation } from "../utils/pptGenerator";
 
 export default function DashboardPage({ kpis = [] }) {
   const navigate = useNavigate();
@@ -30,27 +31,35 @@ export default function DashboardPage({ kpis = [] }) {
   }, [kpis]);
 
   // ---------------------------
+  // DERIVED SUMMARY (FIX)
+  // ---------------------------
+  const summary =
+    aiInsights?.summary ||
+    "Auto-generated report summary based on KPI trends.";
+
+  // ---------------------------
   // RENDER
   // ---------------------------
   return (
     <div className="p-6 space-y-6">
 
-      {/* EXPORT BUTTON */}
+      {/* EXPORT PDF */}
       <button
         onClick={() => setShowExport(true)}
         className="bg-green-600 text-white px-4 py-2 rounded"
       >
         Export PDF
       </button>
+
       {/* EXPORT PPT */}
       <button
-       onClick={() => generatePresentation(kpis)}
-        className="bg-indigo-600 text-white px-4 py-2 rounded"
+        onClick={() => generatePresentation(summary, kpis)}
+        className="bg-blue-600 text-white px-4 py-2 rounded"
       >
-      Export PPT
+        Generate PPT
       </button>
 
-      {/* ✅ SINGLE SOURCE OF TRUTH */}
+      {/* EXEC SUMMARY */}
       <ExecutiveSummary data={kpis} aiInsights={aiInsights} />
 
       {/* EXPORT MODAL */}
