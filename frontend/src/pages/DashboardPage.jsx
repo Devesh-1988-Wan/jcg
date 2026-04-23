@@ -1,16 +1,31 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-
+import DeliveryHealthWidget from "../components/DeliveryHealthWidget";
 import ExecutiveSummary from "../components/ExecutiveSummaryPage";
 import ExportPdfModal from "../components/ExportPdfModal";
+import EditableInsights from "../components/EditableInsights";
+import RiskDrivers from "../components/RiskDrivers";
+
 import { generateAIInsights } from "../services/aiService";
 import { generatePresentation } from "../utils/pptGenerator";
+
+import {
+  calculateDeliveryHealth,
+  getRiskLevel,
+} from "../utils/deliveryHealth";
 
 export default function DashboardPage({ kpis = [] }) {
   const navigate = useNavigate();
 
   const [aiInsights, setAiInsights] = useState(null);
+  const [loadingAI, setLoadingAI] = useState(false);
   const [showExport, setShowExport] = useState(false);
+
+  // ---------------------------
+  // DELIVERY HEALTH
+  // ---------------------------
+  const health = useMemo(() => calculateDeliveryHealth(kpis), [kpis]);
+  const risk = getRiskLevel(health.score);
 
   // ---------------------------
   // EMPTY STATE
@@ -24,18 +39,67 @@ export default function DashboardPage({ kpis = [] }) {
   }
 
   // ---------------------------
-  // AI INSIGHTS
+  // TOP RISKS (PDF-style)
   // ---------------------------
-  useEffect(() => {
-    generateAIInsights(kpis).then(setAiInsights);
+  const topRisks = useMemo(() => {
+    return kpis
+      .filter((k) => k.status === "RED")
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5);
   }, [kpis]);
 
   // ---------------------------
-  // DERIVED SUMMARY (FIX)
+  // AI INSIGHTS (SAFE + LOADING)
+  // ---------------------------
+  useEffect(() => {
+    const fetchAI = async () => {
+      setLoadingAI(true);
+      try {
+        const res = await generateAIInsights({
+          kpis,
+          health,
+          risk,
+        });
+
+        setAiInsights(res);
+      } catch (err) {
+        console.error("AI failed:", err);
+
+        setAiInsights({
+          summary:
+            "System is showing high delivery risk driven by flow congestion and execution instability.",
+          recommendations: [
+            "Enforce WIP limits",
+            "Reduce aging items",
+            "Improve sprint planning discipline",
+          ],
+        });
+      } finally {
+        setLoadingAI(false);
+      }
+    };
+
+    fetchAI();
+  }, [kpis]);
+
+  // ---------------------------
+  // SUMMARY (SMART FALLBACK)
   // ---------------------------
   const summary =
     aiInsights?.summary ||
-    "Auto-generated report summary based on KPI trends.";
+    `Delivery Health Score ${health.score} (${risk.label}). Flow and execution require attention.`;
+
+  // ---------------------------
+  // EXPORT PAYLOAD (IMPORTANT)
+  // ---------------------------
+  const exportPayload = {
+    kpis,
+    aiInsights,
+    deliveryHealth: health,
+    risk,
+    topRisks,
+    summary,
+  };
 
   // ---------------------------
   // RENDER
@@ -43,26 +107,43 @@ export default function DashboardPage({ kpis = [] }) {
   return (
     <div className="p-6 space-y-6">
 
-      {/* EXPORT PDF */}
-      <button
-        onClick={() => setShowExport(true)}
-        className="bg-green-600 text-white px-4 py-2 rounded"
-      >
-        Export PDF
-      </button>
+      {/* 🔥 DELIVERY HEALTH (PRIMARY SIGNAL) */}
+      <DeliveryHealthWidget kpis={kpis} />
 
-      {/* EXPORT PPT */}
-      <button
-        onClick={() => generatePresentation(summary, kpis)}
-        className="bg-blue-600 text-white px-4 py-2 rounded"
-      >
-        Generate PPT
-      </button>
+      {/* 🔥 EXECUTIVE INSIGHTS (EDITABLE) */}
+      <EditableInsights aiInsights={aiInsights} />
 
-      {/* EXEC SUMMARY */}
-      <ExecutiveSummary data={kpis} aiInsights={aiInsights} />
+      {/* 🔥 TOP RISK DRIVERS */}
+      <RiskDrivers data={topRisks} />
 
-      {/* EXPORT MODAL */}
+      {/* 🔥 ACTION BUTTONS */}
+      <div className="flex gap-3">
+
+        <button
+          onClick={() => setShowExport(true)}
+          className="bg-green-600 text-white px-4 py-2 rounded"
+        >
+          Export PDF
+        </button>
+
+        <button
+          onClick={() =>
+            generatePresentation(summary, kpis, health, topRisks)
+          }
+          className="bg-blue-600 text-white px-4 py-2 rounded"
+        >
+          Generate PPT
+        </button>
+      </div>
+
+      {/* 🔥 EXEC SUMMARY (VISUAL + AI) */}
+      <ExecutiveSummary
+        data={kpis}
+        aiInsights={aiInsights}
+        loading={loadingAI}
+      />
+
+      {/* 🔥 EXPORT MODAL */}
       {showExport && (
         <ExportPdfModal
           onClose={() => setShowExport(false)}
@@ -71,8 +152,7 @@ export default function DashboardPage({ kpis = [] }) {
 
             navigate("/report", {
               state: {
-                kpis,
-                aiInsights,
+                ...exportPayload,
                 selectedPages: selected,
                 autoExport: true,
               },
@@ -80,7 +160,6 @@ export default function DashboardPage({ kpis = [] }) {
           }}
         />
       )}
-
     </div>
   );
 }

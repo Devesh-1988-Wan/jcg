@@ -1,6 +1,5 @@
 import React, { useMemo } from "react";
 import RiskTable from "./RiskTable";
-import TrendChart from "./TrendChart";
 import { PieChart, Pie, Cell, Tooltip } from "recharts";
 
 export default function ExecutiveSummary({ data = [], aiInsights }) {
@@ -37,22 +36,6 @@ export default function ExecutiveSummary({ data = [], aiInsights }) {
   }, [normalized]);
 
   // ---------------------------
-  // COMPLIANCE
-  // ---------------------------
-  const compliance = useMemo(() => {
-    if (!normalized.length) return 0;
-
-    const score =
-      normalized.reduce((acc, d) => {
-        if (d.status === "GREEN") return acc + 1;
-        if (d.status === "AMBER") return acc + 0.5;
-        return acc;
-      }, 0) / normalized.length;
-
-    return Math.round(score * 100);
-  }, [normalized]);
-
-  // ---------------------------
   // CHART DATA
   // ---------------------------
   const chartData = [
@@ -72,16 +55,6 @@ export default function ExecutiveSummary({ data = [], aiInsights }) {
       .sort((a, b) => b.value - a.value)
       .slice(0, 5);
   }, [normalized]);
-
-  // ---------------------------
-  // TREND MOCK
-  // ---------------------------
-  const trendMock = [
-    { name: "Week 1", value: 65 },
-    { name: "Week 2", value: 58 },
-    { name: "Week 3", value: 52 },
-    { name: "Week 4", value: compliance },
-  ];
 
   // ---------------------------
   // CARD
@@ -104,10 +77,10 @@ export default function ExecutiveSummary({ data = [], aiInsights }) {
 
         {/* KPI CARDS */}
         <div className="grid grid-cols-2 gap-4">
-          <Card title="Compliance Score" value={`${compliance}%`} color="text-gray-800" />
           <Card title="Critical Risks" value={red} color="text-red-600" />
           <Card title="Warnings" value={amber} color="text-yellow-600" />
           <Card title="Healthy" value={green} color="text-green-600" />
+          <Card title="Total KPIs" value={normalized.length} color="text-gray-800" />
         </div>
 
         {/* DONUT CHART */}
@@ -132,7 +105,7 @@ export default function ExecutiveSummary({ data = [], aiInsights }) {
               dominantBaseline="middle"
               className="text-xl font-bold fill-gray-700"
             >
-              {compliance}%
+              {red}
             </text>
 
             <Tooltip />
@@ -141,9 +114,8 @@ export default function ExecutiveSummary({ data = [], aiInsights }) {
 
       </div>
 
-      {/* TREND + RISKS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <TrendChart data={trendMock} />
+      {/* RISKS TABLE ONLY */}
+      <div>
         <RiskTable data={topRisks} />
       </div>
 
