@@ -5,7 +5,6 @@ import ExecutiveSummary from "../components/ExecutiveSummaryPage";
 import ExportPdfModal from "../components/ExportPdfModal";
 import EditableInsights from "../components/EditableInsights";
 import RiskDrivers from "../components/RiskDrivers";
-
 import { generateAIInsights } from "../services/aiService";
 import { generatePresentation } from "../utils/pptGenerator";
 

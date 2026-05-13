@@ -19,10 +19,13 @@ def compute_risk(data):
 
         category_scores.setdefault(cat, []).append(weighted)
 
-    overall = round(total_score / total_weight, 2)
+    if total_weight == 0:
+        overall = 0
+    else:
+        overall = round(total_score / total_weight, 2)
 
     category_avg = {
-        k: round(sum(v)/len(v), 2)
+        k: (round(sum(v)/len(v), 2) if len(v) else 0)
         for k, v in category_scores.items()
     }
 

@@ -38,14 +38,24 @@ def process_compliance_input(data):
     summary = {"RED": 0, "AMBER": 0, "GREEN": 0}
 
     for item in data:
-        audit_id = item["audit_id"]
-        value = item["value"]
+        audit_id = item.get("audit_id") or item.get("id")
+        value = item.get("value")
+
+        # defensive defaults
+        if audit_id is None:
+            audit_id = "UNKNOWN"
+
+        if value is None:
+            try:
+                value = int(item.get("val", 0))
+            except Exception:
+                value = 0
 
         rule = KPI_RULES.get(audit_id, {})
 
         rag = evaluate_rag(value)
 
-        summary[rag] += 1
+        summary[rag] = summary.get(rag, 0) + 1
 
         results.append({
             "id": audit_id,

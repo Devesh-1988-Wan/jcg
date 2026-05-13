@@ -154,6 +154,9 @@ def generate_fallback_report(data):
     amber = [d for d in data if d["status"] == "AMBER"]
     green = [d for d in data if d["status"] == "GREEN"]
 
+    if not data:
+        return "EXECUTIVE SUMMARY\nScore: 0%\n\nRED Issues: 0\n"
+
     score = (len(green) + 0.5 * len(amber)) / len(data)
 
     return f"""
